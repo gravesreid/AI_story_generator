@@ -1,0 +1,15 @@
+Collecting invisible-watermark
+  Using cached invisible_watermark-0.2.0-py3-none-any.whl.metadata (8.2 kB)
+Requirement already satisfied: Pillow>=6.0.0 in /home/reid/anaconda3/envs/byteDance/lib/python3.10/site-packages (from invisible-watermark) (10.3.0)
+Collecting PyWavelets>=1.1.1 (from invisible-watermark)
+  Using cached pywavelets-1.6.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (9.0 kB)
+Requirement already satisfied: numpy>=1.17.0 in /home/reid/anaconda3/envs/byteDance/lib/python3.10/site-packages (from invisible-watermark) (1.26.4)
+Collecting opencv-python>=4.1.0.25 (from invisible-watermark)
+  Using cached opencv_python-4.9.0.80-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (20 kB)
+Requirement already satisfied: torch in /home/reid/anaconda3/envs/byteDance/lib/python3.10/site-packages (from invisible-watermark) (1.12.1)
+Requirement already satisfied: typing_extensions in /home/reid/anaconda3/envs/byteDance/lib/python3.10/site-packages (from torch->invisible-watermark) (4.9.0)
+Using cached invisible_watermark-0.2.0-py3-none-any.whl (1.6 MB)
+Using cached opencv_python-4.9.0.80-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (62.2 MB)
+Using cached pywavelets-1.6.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (4.5 MB)
+Installing collected packages: PyWavelets, opencv-python, invisible-watermark
+Successfully installed PyWavelets-1.6.0 invisible-watermark-0.2.0 opencv-python-4.9.0.80
