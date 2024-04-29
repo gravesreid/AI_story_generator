@@ -9,11 +9,11 @@ def generate_image_prompts(story_sections, model, tokenizer):
     img_prompts = []
     for section in story_sections:
         img_prompt_messages = [
-            {"role": "system", "content": "Create detailed and descriptive prompts for a text-to-image model. Your prompts should be rich in detail to guide the model in generating accurate and contextually relevant images. Ensure that each prompt is constructed in a way that allows for continuity, preserving the context across multiple images generated from a sequence of related prompts. The maximum token length is 77."},
+            {"role": "system", "content": "Craft a concise, detailed prompt for a text-to-image model, aiming for clarity and relevance. Each prompt should be under 77 tokens, maintaining context continuity across sequences. Tell the model to make dinosaurs"},
             {"role": "user", "content": section},
         ]
         prompt = tokenizer.apply_chat_template(img_prompt_messages, tokenize=False, add_generation_prompt=True)
-        img_prompt_output = model(prompt, max_new_tokens=1028, eos_token_id=[tokenizer.eos_token_id], do_sample=True, temperature=0.6, top_p=0.9)
+        img_prompt_output = model(prompt, max_new_tokens=128, eos_token_id=[tokenizer.eos_token_id], do_sample=True, temperature=0.6, top_p=0.9)
         print(img_prompt_output[0]["generated_text"][len(prompt):])
         img_prompts.append(img_prompt_output[0]["generated_text"][len(prompt):])
     return img_prompts
