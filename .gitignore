@@ -1,4 +1,5 @@
 llama3/
 Anaconda3-2024.02-1-Linux-x86_64.sh
-audio_section_*.wav
-image_*.png
+*.wav
+*.pdf
+*.png
