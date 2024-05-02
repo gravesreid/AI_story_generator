@@ -26,11 +26,14 @@ device = "cuda:0"
 
 model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
 
+with open('secret_token.txt', 'r') as secret_token:
+    token = secret_token.readline().strip()
+
 story_pipeline = transformers.pipeline(
     "text-generation",
     model=model_id,
     model_kwargs={"torch_dtype": torch.bfloat16},
-    token="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",
+    token=token,
     device_map=device,
 )
 
