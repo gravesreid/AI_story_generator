@@ -5,26 +5,26 @@ from parler_tts import ParlerTTSForConditionalGeneration
 from transformers import AutoTokenizer
 import soundfile as sf
 
+
 def generate_image_prompts(story_sections, model, tokenizer):
     img_prompts = []
     for section in story_sections:
         img_prompt_messages = [
-            {"role": "system", "content": "Craft a one sentence prompt for image generation of black cats with super powers for a children's book. Only output the prompt"},
-            {"role": "user", "content": ("create a prompt for: " + section)},
+            {"role": "system", "content": "You create short, descriptive prompts for an image model"},
+            {"role": "user", "content": ("create a short prompt for an image of: " + section + ". only output the prompt, nothing else")},
         ]
-        prompt = tokenizer.apply_chat_template(img_prompt_messages, tokenize=False, add_generation_prompt=True)
-        img_prompt_output = model(prompt, max_new_tokens=100, eos_token_id=[tokenizer.eos_token_id], do_sample=True, temperature=0.6, top_p=0.9)
-        sentences = (img_prompt_output[0]["generated_text"][len(prompt):])
-        sentences = sentences.split("\n\n")
-        print(sentences)
-        img_prompts.append(sentences[0])
+        prompt = tokenizer.apply_chat_template(img_prompt_messages, tokenize=False, add_generation_prompt=False)
+        img_prompt_output = model(prompt, max_new_tokens=100, eos_token_id=tokenizer.eos_token_id, do_sample=True, temperature=0.6, top_p=0.9)
+        sentences = img_prompt_output[0]["generated_text"][len(prompt):]
+        sentences = sentences.split("\n\n")[1]  # Assuming first split is the valid prompt
+        img_prompts.append(sentences)
     return img_prompts
 
 def generate_images(img_prompts, pipe):
     images = []
     for prompt in img_prompts:
         print(prompt)
-        result = pipe(prompt=prompt, num_inference_steps=50, guidance_scale=7.5)  # Adjust the parameters as needed
+        result = pipe(prompt=("Modern animation of " + prompt), num_inference_steps=2, guidance_scale=0)  # Adjust the parameters as needed
         image_path = f"image_{len(images)}.png"
         result.images[0].save(image_path)
         images.append(image_path)

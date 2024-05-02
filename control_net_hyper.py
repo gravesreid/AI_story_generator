@@ -7,7 +7,7 @@ from diffusers import ControlNetModel, StableDiffusionXLControlNetPipeline, Auto
 from huggingface_hub import hf_hub_download
 
 # Load original image
-image = load_image("image_4.png")
+image = load_image("seed.png")
 image = np.array(image)
 # Prepare Canny Control Image
 low_threshold = 100
