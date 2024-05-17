@@ -2,41 +2,14 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A5
 from reportlab.lib.units import inch
 from parler_tts import ParlerTTSForConditionalGeneration
-from transformers import AutoTokenizer, BlipProcessor, BlipForConditionalGeneration, BertTokenizer, BertModel
+from transformers import AutoTokenizer
 import soundfile as sf
 from diffusers import DiffusionPipeline, ControlNetModel, AutoencoderKL, DDIMScheduler, StableDiffusionXLControlNetPipeline, LMSDiscreteScheduler, TCDScheduler
 from huggingface_hub import hf_hub_download
 import os
 import torch
-from PIL import Image
-from sklearn.metrics.pairwise import cosine_similarity
 
-from supercat_characters import *
-
-import io
-from b2sdk.v1 import InMemoryAccountInfo, B2Api, UploadSourceBytes
-# Backblaze stuff
-info = InMemoryAccountInfo()
-b2_api = B2Api(info)
-
-with open('backblaze.txt', 'r') as backblaze:
-    backblaze_key = backblaze.readline().strip()
-with open('backblaze_id.txt', 'r') as backblaze_id:
-    backblaze_id = backblaze_id.readline().strip()
-
-
-b2_api.authorize_account("production", backblaze_id, backblaze_key)
-
-bucket_name = 'dream-tails'
-bucket = b2_api.get_bucket_by_name(bucket_name)
-
-def upload_file_to_b2(bucket, folder_name, file_name, file_content):
-    b2_file_name = os.path.join(folder_name, file_name)
-    bucket.upload(UploadSourceBytes(file_content), b2_file_name)
-    print(f"File '{file_name}' uploaded to '{b2_file_name}' in bucket '{bucket_name}'")
-
-
-# end Backblaze stuff
+from dyno_characters import *
 
 def initialize_pipeline(device="cuda"):
         # Initial standard pipeline for the first image
@@ -53,16 +26,18 @@ def initialize_pipeline(device="cuda"):
 
     return pipe
 
+
 def generate_image_prompts(story_sections, model, tokenizer):
     img_prompts = []
     for section in story_sections:
         img_prompt_messages = [
-            {"role": "system", "content": "You create short, simple scene descriptions for an image generation model. The model doesn't know which characters are which, so describe the characters instead of including the character names. If Super Cat is in the scene include " + supercat.get_description() + ". If Captain Whiskers is in the scene include " + captainwhiskers.get_description() + ". If Professor Catnip is in the scene include " + professorcatnip.get_description() + ". If Lady Meowington is in the scene include " + ladymeowington.get_description() + "."},
-            {"role": "user", "content": (section + ". only output the prompt, nothing else. Describe the character descriptions first, then the background. Limit to 70 words")},
+            {"role": "system", "content": 'You create short, minimal descriptions for an image generation model. For example, if a scene includes a cat that is sitting on a chair, the prompt would be "A black cat sitting on a chair". All the characters are dinosaurs. The dinosaurs are: Tina, a green Tyrannosaurus Rex; Trixie, an orange Triceratops; Vicky, a green velociraptor; and Benny, a grey Brachiosaurus.'},
+            {"role": "user", "content": (section + ". only output the prompt, nothing else. Describe the dinosaur descriptions first, then the background. Limit to 70 words")},
         ]
         prompt = tokenizer.apply_chat_template(img_prompt_messages, tokenize=False, add_generation_prompt=False)
         img_prompt_output = model(prompt, max_new_tokens=100, eos_token_id=tokenizer.eos_token_id, do_sample=True, temperature=0.6, top_p=0.9)
         sentences = img_prompt_output[0]["generated_text"][len(prompt):]
+        print(sentences)
         sentences = sentences.split("\n\n")[1]  # Assuming first split is the valid prompt
         img_prompts.append(sentences)
     return img_prompts
@@ -71,56 +46,11 @@ def generate_images(img_prompts, pipe, folder_name):
     images = []
     for prompt in img_prompts:
         print(prompt)
-        # get bert embeddings for prompt
-        bert_prompt = bert_encode(prompt)
-        result = pipe(prompt=("A picture of " + prompt), num_inference_steps=4, guidance_scale=0, eta=1)  # Adjust the parameters as needed
+        result = pipe(prompt=("A picture of " + prompt), num_inference_steps=4, guidance_scale=0, eta = 1)  # Adjust the parameters as needed
         image_path = os.path.join(folder_name, f"image_{len(images)}.png")
         result.images[0].save(image_path)
-        # get blip description of generated image
-        blip_caption = get_image_caption(image_path)
-        print("Blip caption:", blip_caption)
-        # get bert embeddings for blip caption
-        bert_output = bert_encode(blip_caption)
-        # convert bert embeddings to numpy arrays
-        bert_prompt_np = bert_prompt.detach().cpu().numpy().mean(axis=0)
-        bert_output_np = bert_output.detach().cpu().numpy().mean(axis=0)
-        print("BERT prompt shape:", bert_prompt_np.shape)
-        print("BERT output shape:", bert_output_np.shape)
-        # calculate cosine similarity between prompt and output
-        cos_sim = cosine_similarity([bert_prompt_np], [bert_output_np])[0][0]
-        print("Cosine similarity:", cos_sim)
         images.append(image_path)
     return images
-
-def get_image_caption(image_path):
-    # Load the Blip model and processor
-    processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large")
-    model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large", torch_dtype=torch.float16).to("cuda")
-
-    # Load the image
-    raw_image = Image.open(image_path)
-
-    # Generate the image caption
-    text = "a picture of"
-    inputs = processor(raw_image, text, return_tensors="pt").to("cuda", torch.float16)
-
-    out = model.generate(**inputs)
-    caption = processor.decode(out[0], skip_special_tokens=True)
-    return caption
-
-def bert_encode(text):
-    # Load the BERT model and tokenizer
-    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-    model = BertModel.from_pretrained("bert-base-uncased")
-
-    # Tokenize the text
-    inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True)
-    outputs = model(**inputs)
-    print("BERT output before squeeze:", outputs.last_hidden_state.shape)
-    outputs = outputs.last_hidden_state.squeeze(0)
-    print("BERT output after squeeze:", outputs.shape)
-
-    return outputs
 
 def create_pdf(story_sections, image_paths, folder_name, filename="output_story.pdf"):
     # Create a PDF file

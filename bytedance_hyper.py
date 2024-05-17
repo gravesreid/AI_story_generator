@@ -12,7 +12,7 @@ pipe.fuse_lora()
 # Ensure ddim scheduler timestep spacing set as trailing !!!
 pipe.scheduler = TCDScheduler.from_config(pipe.scheduler.config)
 # lower eta results in more detail
-prompt="A dolphin swimming in the ocean."
-eta = 0.75
-image=pipe(prompt=prompt, num_inference_steps=6, guidance_scale=1, eta=eta).images[0]
+prompt="Tina, the green Tyrannosaurus Rex, Trixie, the orange Triceratops, Vicky, the green velociraptor, and Benny, the grey Brachiosaurus, stand together, ready for adventure. Tina's sharp teeth gleam, Trixie's frill shines, Vicky's sharp claws flex, and Benny's long neck stretches forward"
+eta = 1
+image=pipe(prompt=prompt, num_inference_steps=4, guidance_scale=0, eta=eta).images[0]
 image.save("hyper_output.png")
