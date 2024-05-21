@@ -20,7 +20,7 @@ from supercat_characters import *
 
 
 
-device = "cuda:2"
+device = "cuda:0"
 
 model_id = "meta-llama/Meta-Llama-3-8B-Instruct"
 
@@ -43,7 +43,7 @@ with open("seed_story.txt", "r") as f:
     if cleaned_line:
         last_story += cleaned_line + " "
 print(last_story)
-n_stories = 15 
+n_stories = 25 
 for i in range(n_stories):
     torch.cuda.empty_cache()
     folder_name = f"super_cat_volume_{i}"
@@ -95,6 +95,10 @@ for i in range(n_stories):
     # generate audio for each page of the story
     audio_files = generate_audio(story_sections, folder_name, device=device)
     audio_files = [os.path.join(folder_name, f) for f in audio_files]
+
+    # make an audio file that combines all the audio files
+    combined_audio = generate_combined_audio(audio_files, folder_name)
+
 
 
     # generate images for each page of the story
