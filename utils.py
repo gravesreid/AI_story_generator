@@ -38,7 +38,7 @@ def upload_file_to_b2(bucket, folder_name, file_name, file_content):
 
 # end Backblaze stuff
 
-def initialize_pipeline(device="cuda"):
+def initialize_pipeline(device="cuda:0"):
         # Initial standard pipeline for the first image
     base_model_id = "stabilityai/stable-diffusion-xl-base-1.0"
     repo_name = "ByteDance/Hyper-SD"
@@ -166,6 +166,11 @@ def create_pdf(story_sections, image_paths, folder_name, filename="output_story.
 
     # Save the PDF
     c.save()
+
+    # Save the PDF to backblaze
+    with open(pdf_path, 'rb') as pdf_file:
+        pdf_content = pdf_file.read()
+        upload_file_to_b2(bucket, folder_name, filename, pdf_content)
     return pdf_path
 
 def split_story_into_sections(full_story_text):
@@ -196,7 +201,20 @@ def generate_audio(story_sections, folder_name, device="cuda"):
         audio_file_path = os.path.join(folder_name, f"audio_section_{i + 1}.wav")
         sf.write(audio_file_path, audio_arr, model.config.sampling_rate)
         audio_paths.append(audio_file_path)
+
+        # Save audio to backblaze
+        with open(audio_file_path, 'rb') as audio_file:
+            audio_content = audio_file.read()
+            upload_file_to_b2(bucket, folder_name, f"audio_section_{i + 1}.wav", audio_content)
         
         print(f"Audio for section {i+1} saved to {audio_file_path}")
     return audio_paths
 
+def generate_combined_audio(audio_files, folder_name):
+    combined_audio_path = os.path.join(folder_name, "combined_audio.wav")
+    combined_audio = []
+    for audio_file in audio_files:
+        audio, _ = sf.read(audio_file)
+        combined_audio.extend(audio)
+    sf.write(combined_audio_path, combined_audio, 22050)
+    return combined_audio_path
