@@ -7,6 +7,7 @@ import soundfile as sf
 from diffusers import DiffusionPipeline, ControlNetModel, AutoencoderKL, DDIMScheduler, StableDiffusionXLControlNetPipeline, LMSDiscreteScheduler, TCDScheduler
 from huggingface_hub import hf_hub_download
 import os
+import numpy as np
 import torch
 from PIL import Image
 from sklearn.metrics.pairwise import cosine_similarity
@@ -53,11 +54,15 @@ def initialize_pipeline(device="cuda:0"):
 
     return pipe
 
-def generate_image_prompts(story_sections, model, tokenizer):
+def generate_image_prompts(story_sections, model, tokenizer, instructions, characters):
+    # Create character instructions dynamically
+    character_instructions = " ".join([f"If {char.get_name()} is in the scene include {char.get_description()}." for char in characters])
+    full_instructions = instructions + " " + character_instructions
+    
     img_prompts = []
     for section in story_sections:
         img_prompt_messages = [
-            {"role": "system", "content": "You create short, simple scene descriptions for an image generation model. The model doesn't know which characters are which, so describe the characters instead of including the character names. If Super Cat is in the scene include " + supercat.get_description() + ". If Captain Whiskers is in the scene include " + captainwhiskers.get_description() + ". If Professor Catnip is in the scene include " + professorcatnip.get_description() + ". If Lady Meowington is in the scene include " + ladymeowington.get_description() + "."},
+            {"role": "system", "content": full_instructions},
             {"role": "user", "content": (section + ". only output the prompt, nothing else. Describe the character descriptions first, then the background. Limit to 70 words")},
         ]
         prompt = tokenizer.apply_chat_template(img_prompt_messages, tokenize=False, add_generation_prompt=False)
@@ -66,6 +71,7 @@ def generate_image_prompts(story_sections, model, tokenizer):
         sentences = sentences.split("\n\n")[1]  # Assuming first split is the valid prompt
         img_prompts.append(sentences)
     return img_prompts
+
 
 def generate_images(img_prompts, pipe, folder_name):
     images = []
@@ -215,15 +221,21 @@ def generate_audio(story_sections, folder_name, device="cuda"):
 def generate_combined_audio(audio_files, folder_name):
     combined_audio_path = os.path.join(folder_name, "combined_audio.wav")
     combined_audio = []
-    
+    sample_rate = None
+
     for audio_file in audio_files:
         # Ensure the audio file exists
         if not os.path.exists(audio_file):
             print(f"Error: Audio file {audio_file} does not exist.")
             continue
-        
+
         try:
-            audio, _ = sf.read(audio_file)
+            audio, sr = sf.read(audio_file)
+            if sample_rate is None:
+                sample_rate = sr
+            elif sr != sample_rate:
+                raise ValueError(f"Sample rate mismatch: {audio_file} has {sr}, expected {sample_rate}")
+
             combined_audio.extend(audio)
         except Exception as e:
             print(f"Error reading {audio_file}: {e}")
@@ -231,10 +243,16 @@ def generate_combined_audio(audio_files, folder_name):
 
     # Write the combined audio to a single file
     if combined_audio:
-        sf.write(combined_audio_path, combined_audio, 22050)
+        combined_audio = np.array(combined_audio)
+        sf.write(combined_audio_path, combined_audio, sample_rate)
         print(f"Combined audio saved to {combined_audio_path}")
     else:
         print("No audio data to combine.")
-
+    
+    # Save combined audio to backblaze
+    with open(combined_audio_path, 'rb') as audio_file:
+        combined_audio_content = audio_file.read()
+        upload_file_to_b2(bucket, folder_name, "combined_audio.wav", combined_audio_content)
+    
     return combined_audio_path
 

@@ -8,6 +8,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
 from reportlab.lib import pagesizes
 from transformers import pipeline
+import shutil
 
 from diffusers import StableDiffusionXLControlNetPipeline, ControlNetModel, AutoencoderKL, DDIMScheduler
 from diffusers.utils import load_image
@@ -15,8 +16,8 @@ import numpy as np
 import cv2
 from PIL import Image
 
-from utils import *
-from supercat_characters import *
+from utilsbb import *
+from space_tails_characters import *
 
 
 
@@ -37,22 +38,29 @@ story_pipeline = transformers.pipeline(
 )
 control_pipe = initialize_pipeline(device)
 last_story = ""
-with open("seed_story.txt", "r") as f:
+with open("space_tails_seed.txt", "r") as f:
     for line in f:
         cleaned_line = line.strip()
     if cleaned_line:
         last_story += cleaned_line + " "
 print(last_story)
-n_stories = 25 
+n_stories = 20
+
+characters = [astro, nova, zeno, stella, quasar, luna]
 for i in range(n_stories):
+    # delete previous directory
+    if i > 0:
+        prev_folder_name = f"space_tails_{i-1}"
+        shutil.rmtree(prev_folder_name, ignore_errors=True)
+        print(f"Deleted {prev_folder_name}")
     torch.cuda.empty_cache()
-    folder_name = f"super_cat_volume_{i}"
+    folder_name = f"space_tails_{i}"
     os.makedirs(folder_name, exist_ok=True)  # Create the folder if it doesn't exist
 
-
+    story_instructions = "You are an author of the space tails series. ".join([f"The protagonists in the series are: {char.get_name()}." for char in characters])
 
     story_messages = [
-        {"role": "system", "content": "You are a an author of the Super Cat series. The protagonists in the series are: " + supercat.get_name() + " a " + supercat.get_gender() + supercat.get_description() + ", " + captainwhiskers.get_name() + " a " + captainwhiskers.get_gender() + captainwhiskers.get_description() + ". And the antagonists are:  " + professorcatnip.get_name() + " a " + professorcatnip.get_gender() + professorcatnip.get_description() + ", " + ladymeowington.get_name() + " a " + ladymeowington.get_gender() + ladymeowington.get_description() + "."},
+        {"role": "system", "content": story_instructions},
         {"role": "user", "content": f"The last story was: {last_story}. Write the next story, with each page separated by an empty line. Only output the text, nothing else. Do not output image descriptions."},
     ]
 
@@ -105,7 +113,9 @@ for i in range(n_stories):
     # generate images for each page of the story
     eta = 0.5
     #standard_pipe, control_pipe = initialize_pipelines(device)
-    img_prompts = generate_image_prompts(story_sections, story_pipeline, story_pipeline.tokenizer)
+    instructions = "You create short, simple scene descriptions for an image generation model. The model doesn't know which characters are which, so describe the characters instead of including the character names."
+
+    img_prompts = generate_image_prompts(story_sections, story_pipeline, story_pipeline.tokenizer, instructions, characters)
     # save image prompts to b2
     for i, img_prompt in enumerate(img_prompts):
         img_prompt_name = f"page_{i}_img_prompt.txt"

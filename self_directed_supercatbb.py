@@ -8,6 +8,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
 from reportlab.lib import pagesizes
 from transformers import pipeline
+import shutil
 
 from diffusers import StableDiffusionXLControlNetPipeline, ControlNetModel, AutoencoderKL, DDIMScheduler
 from diffusers.utils import load_image
@@ -15,7 +16,7 @@ import numpy as np
 import cv2
 from PIL import Image
 
-from utils import *
+from utilsbb import *
 from supercat_characters import *
 
 
@@ -45,6 +46,11 @@ with open("seed_story.txt", "r") as f:
 print(last_story)
 n_stories = 25 
 for i in range(n_stories):
+    # delete previous directory
+    if i > 0:
+        prev_folder_name = f"super_cat_volume_{i-1}"
+        shutil.rmtree(prev_folder_name, ignore_errors=True)
+        print(f"Deleted {prev_folder_name}")
     torch.cuda.empty_cache()
     folder_name = f"super_cat_volume_{i}"
     os.makedirs(folder_name, exist_ok=True)  # Create the folder if it doesn't exist
@@ -105,7 +111,10 @@ for i in range(n_stories):
     # generate images for each page of the story
     eta = 0.5
     #standard_pipe, control_pipe = initialize_pipelines(device)
-    img_prompts = generate_image_prompts(story_sections, story_pipeline, story_pipeline.tokenizer)
+    instructions = "You create short, simple scene descriptions for an image generation model. The model doesn't know which characters are which, so describe the characters instead of including the character names."
+    characters = [supercat, captainwhiskers, professorcatnip, ladymeowington]
+
+    img_prompts = generate_image_prompts(story_sections, story_pipeline, story_pipeline.tokenizer, instructions, characters)
     # save image prompts to b2
     for i, img_prompt in enumerate(img_prompts):
         img_prompt_name = f"page_{i}_img_prompt.txt"
